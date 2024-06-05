@@ -15947,8 +15947,8 @@ int64_t llama_time_us(void) {
     return ggml_time_us();
 }
 
-struct llama_model * llama_load_model_from_file(
-        const char * path_model,
+struct llama_model * llama_load_model_from_internal(
+        std::function<int(llama_model &model, llama_model_params &params)> load_func,
         struct llama_model_params   params) {
     ggml_time_init();
 
@@ -15981,7 +15981,7 @@ struct llama_model * llama_load_model_from_file(
         }
         model->rpc_servers.push_back(servers);
     }
-    int status = llama_model_load(path_model, *model, params);
+    int status = load_func(*model, params);
     GGML_ASSERT(status <= 0);
     if (status < 0) {
         if (status == -1) {
@@ -15994,6 +15994,29 @@ struct llama_model * llama_load_model_from_file(
     }
 
     return model;
+}
+
+
+struct llama_model * llama_load_model_from_file(
+        const char *fname, llama_model_params params,
+        struct llama_model_params   params) {
+    return llama_load_model_from_internal(
+        [fname](llama_model &model, llama_model_params &params)
+        {
+            return llama_model_load_file(fname, model, params);
+        },
+        params);
+}
+
+struct llama_model * llama_load_model_from_buffer(
+        void *buffer, size_t buffer_size,
+        struct llama_model_params   params) {
+    return llama_load_model_from_internal(
+        [buffer, buffer_size](llama_model &model, llama_model_params &params)
+        {
+            return llama_model_load_buffer(buffer, buffer_size, model, params);
+        },
+        params);
 }
 
 void llama_free_model(struct llama_model * model) {
