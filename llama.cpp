@@ -6549,10 +6549,8 @@ static bool llm_load_tensors(
 }
 
 // Returns 0 on success, -1 on error, and -2 on cancellation via llama_progress_callback
-static int llama_model_load(const std::string & fname, llama_model & model, llama_model_params & params) {
+static int llama_model_load(llama_model_loader &ml, llama_model & model, llama_model_params & params) {
     try {
-        llama_model_loader ml(fname, params.use_mmap, params.check_tensors, params.kv_overrides);
-
         model.hparams.vocab_only = params.vocab_only;
 
         try {
@@ -6621,6 +6619,28 @@ static int llama_model_load(const std::string & fname, llama_model & model, llam
         return -1;
     }
 
+    return 0;
+}
+
+static int llama_model_load_file(const std::string & fname, llama_model & model, llama_model_params & params) {
+    try {
+        llama_model_loader ml(fname, params.use_mmap, params.check_tensors, params.kv_overrides);
+        return llama_model_load(ml, model, params);
+    } catch (const std::exception & err) {
+        LLAMA_LOG_ERROR("%s: error loading model: %s\n", __func__, err.what());
+        return -1;
+    }
+    return 0;
+}
+
+static int llama_model_load_buffer(void *buffer, size_t buffer_size, llama_model & model, llama_model_params & params) {
+    try {
+        llama_model_loader ml(buffer, buffer_size, params.use_mmap, params.check_tensors, params.kv_overrides);
+        return llama_model_load(ml, model, params);
+    } catch (const std::exception & err) {
+        LLAMA_LOG_ERROR("%s: error loading model: %s\n", __func__, err.what());
+        return -1;
+    }
     return 0;
 }
 
